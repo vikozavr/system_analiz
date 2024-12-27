@@ -1,47 +1,35 @@
 import numpy as np
+from math import log2
 
-def calculate_entropy(matrix):
-    age_groups, types = matrix.shape
-    
-    total_sum = np.sum(matrix)
-    
-    probabilities = matrix / total_sum
-    entropy_joint = -np.sum(probabilities * np.log2(probabilities, where=(probabilities > 0)))
-    
-    age_totals = np.sum(probabilities, axis=1)
-    entropy_ages = -np.sum(age_totals * np.log2(age_totals, where=(age_totals > 0)))
-    
-    type_totals = np.sum(probabilities, axis=0)
-    entropy_types = -np.sum(type_totals * np.log2(type_totals, where=(type_totals > 0)))
-    
-    
-    entropy_conditional = np.sum([
-        -np.sum(probabilities[i] * np.log2(probabilities[i], where=(probabilities[i] > 0)))
-        for i in range(age_groups)
-    ])
-    
-    entropy_difference = round(entropy_ages - entropy_conditional, 2)
-    
-    return np.round([
-        entropy_joint,
-        entropy_ages,
-        entropy_types,
-        entropy_conditional,
-        entropy_difference
-    ], 2)
+
+def calculate_entropy(probabilities):
+    entropy_value = 0
+    for prob in probabilities:
+        if prob > 0:
+            entropy_value -= prob * log2(prob)
+    return entropy_value
+
 
 def main():
-    arr = np.array([
+    joint_matrix = np.array([
         [20, 15, 10, 5],
         [30, 20, 15, 10],
         [25, 25, 20, 15],
         [20, 20, 25, 20],
         [15, 15, 30, 25]
     ])
-    result = calculate_entropy(arr)
-    print(result)
-    return result
 
+    total_outcomes = joint_matrix.sum()
+    joint_probabilities = joint_matrix / total_outcomes
 
-if __name__ == "__main__":
-    main()
+    marginal_prob_A = joint_probabilities.sum(axis=1)
+    marginal_prob_B = joint_probabilities.sum(axis=0)
+
+    H_AB = calculate_entropy(joint_probabilities.flatten())
+    H_A = calculate_entropy(marginal_prob_A)
+    H_B = calculate_entropy(marginal_prob_B)
+
+    mutual_info = H_A + H_B - H_AB
+
+    print("Энтропия совместного события H(AB)", round(H_AB, 2))
+    print("Количество информации I(A, B)", round(mutual_info, 2))
