@@ -1,60 +1,47 @@
 import json
 import numpy as np
 
-def load_clusters_from_file(filepath):
-    with open(filepath, 'r') as file:
-        clusters = json.load(file)
-    
-    return [c if isinstance(c, list) else [c] for c in clusters]
 
-def construct_matrix(clusters):
-    n = sum(len(cluster) for cluster in clusters)
-    matrix = np.ones((n, n), dtype=int)
+def parse_clusters(json_data):
+    clusters = [cluster if isinstance(cluster, list) else [cluster] for cluster in json_data]
+    total_elements = sum(len(cluster) for cluster in clusters)
 
-    
+    matrix = [[1] * total_elements for _ in range(total_elements)]
+    preceding_elements = []
+
     for cluster in clusters:
-        indices = [element - 1 for element in cluster]
-        for element_index in indices:
-            matrix[element_index, indices] = 1
-            matrix[element_index][element_index] = 0
+        for earlier in preceding_elements:
+            for current in cluster:
+                matrix[current - 1][earlier - 1] = 0
+        preceding_elements.extend(int(el) for el in cluster)
 
-    return matrix
+    return np.array(matrix)
 
-def identify_conflict_clusters(matrix):
+
+def detect_conflict_core(matrix):
     conflict_core = []
-    n = len(matrix)
-    
-    for i in range(n):
-        for j in range(i + 1, n):
-            if matrix[i, j] == 0 and matrix[j, i] == 0:
-                conflict_pair = sorted((i + 1, j + 1))
-                if conflict_pair not in conflict_core:
-                    conflict_core.append(conflict_pair)
-                    
+
+    for row in range(len(matrix)):
+        for col in range(row + 1, len(matrix)):
+            if matrix[row][col] == 0 and matrix[col][row] == 0:
+                pair = sorted([row + 1, col + 1])
+                if pair not in conflict_core:
+                    conflict_core.append(pair)
+
     return conflict_core
 
-def main(file_path1, file_path2):
-    
-    clusters1 = load_clusters_from_file(file_path1)
-    clusters2 = load_clusters_from_file(file_path2)
-    
-    
-    matrix1 = construct_matrix(clusters1)
-    matrix2 = construct_matrix(clusters2)
 
-    
-    matrix_and = np.multiply(matrix1, matrix2)
+def main(json_ranking1, json_ranking2):
+    ranking1 = json.loads(json_ranking1)
+    ranking2 = json.loads(json_ranking2)
 
-    
-    matrix_or = np.maximum(matrix_and, matrix_and.T)
+    matrix1 = parse_clusters(ranking1)
+    matrix2 = parse_clusters(ranking2)
 
-    
-    conflict_clusters = identify_conflict_clusters(matrix_or)
-    
-    
-    print(conflict_clusters)
-    return conflict_clusters
+    combined_and = np.multiply(matrix1, matrix2)
+    combined_and_transposed = np.multiply(matrix1.T, matrix2.T)
+    final_matrix = np.maximum(combined_and, combined_and_transposed)
 
-# Пример использования main (при запуске напрямую)
-#if __name__ == "__main__":
-   # main('file_1.json', 'file_2.json')
+    conflict_core = detect_conflict_core(final_matrix)
+
+    return json.dumps(conflict_core)
