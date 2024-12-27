@@ -1,50 +1,41 @@
 import json
 import numpy as np
 
-def main(file_path):
+def main(filepath):
+    with open(filepath, "r") as file:
+        graph_data = json.load(file)
+    nodes = graph_data["nodes"]
+    num_nodes = len(nodes)
+    adjacency_matrix = np.zeros((num_nodes, num_nodes))
     
-    with open(file_path, "r") as file:
-        data = json.load(file)
-    
-    nodes = data.get("nodes", {})
-    node_count = len(nodes)
-    
-    
-    adjacency_matrix = np.zeros((node_count, node_count))
-    for node, connections in nodes.items():
-        node_idx = int(node) - 1
+    for idx, (node, connections) in enumerate(nodes.items(), start=1):
         for connected_node in connections:
-            connected_idx = int(connected_node) - 1
-            adjacency_matrix[node_idx][connected_idx] = 1
-            
-    
-    result_matrix = np.copy(adjacency_matrix)
+            adjacency_matrix[idx - 1][int(connected_node) - 1] = 1
 
-    
-    def update_paths(start, current):
-        for neighbor in range(node_count):
-            if result_matrix[current, neighbor] != 0:
-                result_matrix[start, neighbor] += 2 if result_matrix[start, neighbor] == 0 else 1
-                update_paths(start, neighbor)
+    extension_matrix = adjacency_matrix.copy()
 
-   
-    for i in range(node_count):
-        for j in range(node_count):
-            if result_matrix[i][j] != 0:
-                update_paths(i, j)
+    def propagate_paths(source, destination):
+        for intermediate in range(num_nodes):
+            if extension_matrix[destination, intermediate] != 0:
+                if extension_matrix[source, intermediate] == 0:
+                    extension_matrix[source, intermediate] = 2
+                else:
+                    extension_matrix[source, intermediate] += 1
+                propagate_paths(source, intermediate)
 
-    
-    total_connections = (adjacency_matrix > 0).sum()
+    direct_connections = 0
+    for source in range(num_nodes):
+        for destination in range(num_nodes):
+            if adjacency_matrix[source][destination] == 1:
+                direct_connections += 1
+            if extension_matrix[source][destination] != 0:
+                propagate_paths(source, destination)
 
+    entropy = 0
+    for row in range(num_nodes):
+        for col in range(direct_connections):
+            if extension_matrix[row][col] != 0:
+                prob = extension_matrix[row][col] / (num_nodes - 1)
+                entropy += prob * np.log2(prob)
     
-    entropy_sum = 0
-    for j in range(node_count):
-        for i in range(node_count): 
-            if result_matrix[j][i] != 0:
-                prob = result_matrix[j][i] / (node_count - 1)
-                entropy_sum += prob * np.log2(prob)
-    
-    
-    entropy_sum = round(-entropy_sum, 1)
-
-    return entropy_sum
+    return round(-entropy, 1)
