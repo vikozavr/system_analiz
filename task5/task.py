@@ -2,46 +2,48 @@ import json
 import numpy as np
 
 
-def parse_clusters(json_data):
-    clusters = [cluster if isinstance(cluster, list) else [cluster] for cluster in json_data]
-    total_elements = sum(len(cluster) for cluster in clusters)
+def load_mat(json_str: str) -> list[list[int]]:
+    data = json.loads(json_str)
+    clusters = []
+    n = 0
+    for c in data:
+        clusters.append(c if isinstance(c, list) else [c])
+        n += len(clusters[-1])
 
-    matrix = [[1] * total_elements for _ in range(total_elements)]
-    preceding_elements = []
+    matrix = [[1] * n for _ in range(n)]
+    less = []
+    for c in clusters:
+        for worse in less:
+            for element in c:
+                matrix[element - 1][worse - 1] = 0
+        for element in c:
+            less.append(element)
 
-    for cluster in clusters:
-        for earlier in preceding_elements:
-            for current in cluster:
-                matrix[current - 1][earlier - 1] = 0
-        preceding_elements.extend(int(el) for el in cluster)
-
-    return np.array(matrix)
-
-
-def detect_conflict_core(matrix):
-    conflict_core = []
-
-    for row in range(len(matrix)):
-        for col in range(row + 1, len(matrix)):
-            if matrix[row][col] == 0 and matrix[col][row] == 0:
-                pair = sorted([row + 1, col + 1])
-                if pair not in conflict_core:
-                    conflict_core.append(pair)
-
-    return conflict_core
+    return matrix
 
 
-def main(json_ranking1, json_ranking2):
-    ranking1 = json.loads(json_ranking1)
-    ranking2 = json.loads(json_ranking2)
+def main(a: str, b: str) -> str:
+    A = np.array(load_mat(a))
+    B = np.array(load_mat(b))
 
-    matrix1 = parse_clusters(ranking1)
-    matrix2 = parse_clusters(ranking2)
+    AB = A * B
+    AB_T = A.T * B.T
+    M = np.maximum(AB, AB_T)
 
-    combined_and = np.multiply(matrix1, matrix2)
-    combined_and_transposed = np.multiply(matrix1.T, matrix2.T)
-    final_matrix = np.maximum(combined_and, combined_and_transposed)
+    core = set()
+    for i in range(len(M)):
+        for j in range(i + 1, len(M)):
+            if M[i, j] == 0 and M[j, i] == 0:
+                core.add((i + 1, j + 1))
 
-    conflict_core = detect_conflict_core(final_matrix)
+    result = []
+    for pair in sorted(core):
+        result.append(pair[0] if len(pair) == 1 else pair)
+    return json.dumps(result)
 
-    return json.dumps(conflict_core)
+
+A = '[1,[2,3],4,[5,6,7],8,9,10]'
+B = '[[1,2],[3,4,5],6,7,9,[8,10]]'
+
+if __name__ == '__main__':
+    print(main(A, B))
