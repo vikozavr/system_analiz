@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def compute_information_metrics(filename: str) -> list:
+def main(filename: str) -> list:
 
     data = pd.read_csv(filename, index_col=0)
 
@@ -29,4 +29,4 @@ def compute_information_metrics(filename: str) -> list:
 
 if __name__ == '__main__':
     filename = 'aaa.csv'
-    print(compute_information_metrics(filename))
+    print(main(filename))
