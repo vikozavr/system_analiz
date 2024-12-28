@@ -1,30 +1,32 @@
+import pandas as pd
 import numpy as np
-from math import log2
 
-def calculate_entropy(prob_dist):
-    return -sum(p * log2(p) for p in prob_dist if p > 0)
+def compute_information_metrics(filename: str) -> list:
 
-def main(matrix):
-    total_elements = np.sum(matrix)
-    joint_distribution = matrix / total_elements
-    marginal_X = joint_distribution.sum(axis=1)
-    marginal_Y = joint_distribution.sum(axis=0)
+    data = pd.read_csv(filename, index_col=0)
 
-    joint_entropy = calculate_entropy(joint_distribution.flatten())
-    entropy_X = calculate_entropy(marginal_X)
-    entropy_Y = calculate_entropy(marginal_Y)
+    total_sum = data.values.sum()
+    
+    probabilities = data / total_sum
+   
+    H_AB = -np.nansum(probabilities * np.log2(probabilities))
 
-    mutual_information = entropy_X + entropy_Y - joint_entropy
 
-    print(f"Количество информации I(X, Y): {mutual_information:.2f}")
-    print(f"Энтропия совместного события H(XY): {joint_entropy:.2f}")
+    row_totals = probabilities.sum(axis=1)
+    col_totals = probabilities.sum(axis=0)
 
-input_matrix = np.array([
-    [20, 15, 10, 5],
-    [30, 20, 15, 10],
-    [25, 25, 20, 15],
-    [20, 20, 25, 20],
-    [15, 15, 30, 25]
-])
 
-main(input_matrix)
+    H_A = -np.nansum(row_totals * np.log2(row_totals))
+    H_B = -np.nansum(col_totals * np.log2(col_totals))
+
+
+    H_a_B = -np.nansum(probabilities.apply(lambda row: np.nansum(row * np.log2(row / row_totals[row.name])), axis=1))
+
+    
+    I_A_B = H_A - H_a_B
+
+    return [float(round(v, 2)) for v in (H_AB, H_A, H_B, H_a_B, I_A_B)]
+
+if __name__ == '__main__':
+    filename = 'aaa.csv'
+    print(compute_information_metrics(filename))
